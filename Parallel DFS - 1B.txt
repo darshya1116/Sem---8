@@ -1,0 +1,142 @@
+
+
+Practical 1A
+
+Parallel DFS Traversal
+
+Commands: 
+
+nano dfs.cpp
+g++ -fopenmp dfs.cpp -o dfs
+./dfs
+
+Code
+
+#include <iostream>
+#include <vector>
+#include <stack>
+#include <omp.h>
+
+using namespace std;
+
+void parallelDFS(int start, vector<vector<int>> &graph, int n) {
+
+    vector<bool> visited(n, false);
+    stack<int> st;
+
+    st.push(start);
+
+    cout << "Parallel DFS Traversal: ";
+
+    #pragma omp parallel
+    {
+        while (true) {
+
+            int node;
+
+            // ✅ Critical section for stack access
+            #pragma omp critical
+            {
+                if (!st.empty()) {
+                    node = st.top();
+                    st.pop();
+                } else {
+                    node = -1;
+                }
+            }
+
+            // Exit condition
+            if (node == -1)
+                break;
+
+            // Visit node
+            if (!visited[node]) {
+
+                #pragma omp critical
+                {
+                    if (!visited[node]) {
+                        visited[node] = true;
+                        cout << node << " ";
+                    }
+                }
+
+                // Push neighbors
+                for (int i = graph[node].size() - 1; i >= 0; i--) {
+                    int neighbor = graph[node][i];
+
+                    if (!visited[neighbor]) {
+                        #pragma omp critical
+                        {
+                            st.push(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ✅ Main Function
+int main() {
+    int n, e, u, v, start;
+
+    cout << "Enter number of nodes: ";
+    cin >> n;
+
+    cout << "Enter number of edges: ";
+    cin >> e;
+
+    vector<vector<int>> graph(n);
+
+    cout << "Enter pairs of edges (u v):\n";
+    for (int i = 0; i < e; i++) {
+        cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u); // undirected
+    }
+
+    cout << "Enter start node: ";
+    cin >> start;
+
+    parallelDFS(start, graph, n);
+
+    cout << endl;
+
+    return 0;
+}
+
+OUTPUT : 
+
+Enter number of nodes: 5
+Enter number of edges: 4
+Enter pairs of edges (u v):
+0 1
+0 2
+1 3
+2 4
+Enter start node: 0
+
+
+Pseudocode
+
+START
+
+1. Initialize graph (adjacency list)
+2. Create stack S and visited array
+
+3. Push start node into S
+
+4. While S is not empty:
+
+      node = pop from S   (critical section)
+
+      If node not visited:
+
+            mark visited
+            print node
+
+            For each neighbor of node:
+                  If not visited:
+                        push into S   (critical section)
+
+END

@@ -1,0 +1,176 @@
+Practical 1A
+
+Parallel BFS Traversal
+
+
+Commands: 
+
+nano bfs.cpp          
+g++ -fopenmp bfs.cpp -o bfs   
+./bfs                
+
+
+Code:
+
+#include <iostream>
+#include <queue>
+#include <omp.h>
+
+using namespace std;
+
+// Node Structure
+struct Node {
+    int data;
+    Node* left;
+    Node* right;
+
+    Node(int val) {
+        data = val;
+        left = right = NULL;
+    }
+};
+
+// BFS Class
+class BFS {
+private:
+    Node* root;
+
+public:
+    BFS() {
+        root = NULL;
+    }
+
+    // Insert Node in Level Order
+    void insert(int val) {
+        Node* newNode = new Node(val);
+
+        if (root == NULL) {
+            root = newNode;
+            return;
+        }
+
+        queue<Node*> q;
+        q.push(root);
+
+        while (!q.empty()) {
+            Node* temp = q.front();
+            q.pop();
+
+            if (temp->left == NULL) {
+                temp->left = newNode;
+                return;
+            } else {
+                q.push(temp->left);
+            }
+
+            if (temp->right == NULL) {
+                temp->right = newNode;
+                return;
+            } else {
+                q.push(temp->right);
+            }
+        }
+    }
+
+    // Parallel BFS Traversal
+    void parallelBFS() {
+        if (root == NULL) return;
+
+        queue<Node*> q;
+        q.push(root);
+
+        cout << "\nParallel BFS Traversal: ";
+
+        while (!q.empty()) {
+            int size = q.size();
+
+            #pragma omp parallel for
+            for (int i = 0; i < size; i++) {
+
+                Node* current;
+
+                #pragma omp critical
+                {
+                    if (!q.empty()) {
+                        current = q.front();
+                        q.pop();
+                        cout << current->data << " ";
+                    }
+                }
+
+                #pragma omp critical
+                {
+                    if (current->left != NULL)
+                        q.push(current->left);
+
+                    if (current->right != NULL)
+                        q.push(current->right);
+                }
+            }
+        }
+        cout << endl;
+    }
+};
+
+// Main Function
+int main() {
+    BFS tree;
+    char choice;
+    int value;
+
+    do {
+        cout << "Enter data: ";
+        cin >> value;
+
+        tree.insert(value);
+
+        cout << "Do you want to insert one more node? (y/n): ";
+        cin >> choice;
+
+    } while (choice == 'y' || choice == 'Y');
+
+    // Perform BFS
+    tree.parallelBFS();
+
+    return 0;
+}
+
+
+
+OUTPUT:
+
+Enter data: 1
+Do you want to insert one more node? (y/n): y
+Enter data: 2
+Do you want to insert one more node? (y/n): y
+Enter data: 3
+Do you want to insert one more node? (y/n): y
+Enter data: 4
+Do you want to insert one more node? (y/n): n
+
+Parallel BFS Traversal: 1 2 3 4
+
+
+Pseudocode
+
+START
+
+1. Initialize graph (adjacency list)
+2. Create queue Q and visited array
+
+3. Mark start node as visited
+4. Push start node into Q
+
+5. While Q is not empty:
+      size = Q.size()
+
+      Parallel for i = 1 to size:
+            node = pop from Q   (critical section)
+            print node
+
+            For each neighbor of node:
+                  If not visited:
+                        mark visited
+                        push into Q   (critical section)
+
+END

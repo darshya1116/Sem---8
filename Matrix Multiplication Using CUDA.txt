@@ -1,0 +1,113 @@
+Practical 4B
+
+Matrix Multiplication Using CUDA 
+
+Commands: 
+
+nano matrix_mul.cu
+nvcc matrix_mul.cu -o matrix_mul
+./matrix_mul
+
+Code
+
+#include <iostream>
+#include <cuda_runtime.h>
+
+using namespace std;
+
+// Kernel Function
+__global__ void matrixMul(int *A, int *B, int *C, int row1, int col1, int col2) {
+
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < row1 && col < col2) {
+        int sum = 0;
+
+        for (int k = 0; k < col1; k++) {
+            sum += A[row * col1 + k] * B[k * col2 + col];
+        }
+
+        C[row * col2 + col] = sum;
+    }
+}
+
+int main() {
+
+    // 1. Matrix Initialization (Host)
+    int row1 = 2, col1 = 2;
+    int row2 = 2, col2 = 2;
+
+    int h_A[] = {1, 2, 3, 4};   // Matrix A
+    int h_B[] = {5, 6, 7, 8};   // Matrix B
+    int h_C[4];                 // Result Matrix
+
+    // 2. Device Memory Allocation
+    int *d_A, *d_B, *d_C;
+    cudaMalloc(&d_A, 4 * sizeof(int));
+    cudaMalloc(&d_B, 4 * sizeof(int));
+    cudaMalloc(&d_C, 4 * sizeof(int));
+
+    // 3. Data Transfer (Host → Device)
+    cudaMemcpy(d_A, h_A, 4 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B, 4 * sizeof(int), cudaMemcpyHostToDevice);
+
+    // 4. Kernel Launch
+    dim3 blockSize(2, 2);
+    dim3 gridSize(1, 1);
+
+    matrixMul<<<gridSize, blockSize>>>(d_A, d_B, d_C, row1, col1, col2);
+
+    // 5. Device Synchronization
+    cudaDeviceSynchronize();
+
+    // 6. Data Retrieval (Device → Host)
+    cudaMemcpy(h_C, d_C, 4 * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // 7. Print Output
+    cout << "Resultant Matrix:\n";
+    for (int i = 0; i < row1; i++) {
+        for (int j = 0; j < col2; j++) {
+            cout << h_C[i * col2 + j] << " ";
+        }
+        cout << endl;
+    }
+
+    // 8. Memory Deallocation
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+
+    return 0;
+}
+
+OUTPUT: 
+
+Resultant Matrix:
+19 22
+43 50
+
+
+Pseudocode
+
+START
+
+1. Initialize matrices A and B on host
+
+2. Allocate memory on device (GPU)
+
+3. Copy A and B from host to device
+
+4. Launch kernel:
+      Each thread computes one element:
+            C[row][col] = Σ (A[row][k] * B[k][col])
+
+5. Synchronize device
+
+6. Copy result matrix C from device to host
+
+7. Print resultant matrix
+
+8. Free device memory
+
+END
